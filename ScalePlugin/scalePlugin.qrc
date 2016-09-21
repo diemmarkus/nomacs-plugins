@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/ScalePlugin">
+	<file>img/read.png</file>
+    </qresource>
+</RCC>

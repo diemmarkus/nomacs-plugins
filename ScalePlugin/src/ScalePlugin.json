@@ -1,0 +1,11 @@
+{
+    "PluginName" 	: "Image Scaling",
+	"Tagline" 		: "Image Scaling using Waifu2x",
+	"Description"	: "This plugin uses Waifu2x for image scaling and denoising",
+	"AuthorName" 	: "Markus Diem, Chao Dong et al.",
+	"Company"		: "Computer Vision Lab",
+	"DateCreated" 	: "2016-09-20",
+	"DateModified"	: "2016-09-20",
+	"PluginId"		: "526e3e76088f47d3bdec22e625f10b16",
+	"Version"		: "0.1.0"
+}
