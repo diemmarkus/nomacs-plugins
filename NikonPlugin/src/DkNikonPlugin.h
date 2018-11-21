@@ -79,13 +79,16 @@ public:
 	DkNikonPlugin();
 	~DkNikonPlugin();
 
-	QString id() const override;
     QImage image() const override;
 
 	QSharedPointer<nmc::DkImageContainer> runPlugin(const QString &runID = QString(), QSharedPointer<nmc::DkImageContainer> image = QSharedPointer<nmc::DkImageContainer>()) const override;
-	nmc::DkPluginViewPort* getViewPort();
+	nmc::DkPluginViewPort* getViewPort() override;
 	void deleteViewPort();
 	virtual bool closesOnImageChange() {return false;};
+
+	void setVisible(bool visible) override;
+
+	bool createViewPort(QWidget* parent) override;
 
 protected:
 	nmc::DkPluginViewPort* viewport;

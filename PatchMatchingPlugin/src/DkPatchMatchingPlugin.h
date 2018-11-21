@@ -72,14 +72,14 @@ public:
 	DkPatchMatchingPlugin();
 	virtual ~DkPatchMatchingPlugin() = default;
 
-	QString id() const override;
     QImage image() const override;
 
 	QSharedPointer<nmc::DkImageContainer> runPlugin(const QString &runID = QString(), 
 				QSharedPointer<nmc::DkImageContainer> image = QSharedPointer<nmc::DkImageContainer>()) const override;
 	nmc::DkPluginViewPort* getViewPort() override;
-	void deleteViewPort() override;
+	virtual bool createViewPort(QWidget* parent) override;
 	bool closesOnImageChange() const override;
+	virtual void setVisible(bool visible) override;
 
 protected:
 	DkPatchMatchingViewPort* mViewport;
@@ -101,9 +101,10 @@ public:
 	QByteArray createCurrentJson();
 
 	auto getNearestPolygon(QPointF point);
+	
 
 public slots:
-	void setVisible(bool visible) override;
+	virtual void setVisible(bool visible) override;
 	void updateImageContainer(QSharedPointer<nmc::DkImageContainerT> imgC) override;
 	void setPanning(bool checked);
 	void discardChangesAndClose();
@@ -192,6 +193,10 @@ public:
 	int getStepSize();
 	void setStepSize(int size);
 
+	// setter and gett for patch size (timeline)
+	int getPatchSize();
+	void setPatchSize(int size);
+
 	int getCurrentPolygon();
 	void addPolygon(QColor color, bool select = false);
 	void clearPolygons();
@@ -205,6 +210,7 @@ public slots:
 signals:
 	// emitted when the step size spinner is changed (timeline)
 	void stepSizeChanged(int width);
+	void patchSizeChanged(int width);
 	void saveTriggered();
 	void removePolyTriggered();
 	void clonePolyTriggered();
@@ -216,6 +222,7 @@ signals:
 protected:
 	void createLayout();
 	
+	QSpinBox* mPatchSizeSpinner;
 	QSpinBox* mStepSizeSpinner;		// changes step size for timeline
 	QComboBox* mPolygonCombobox;			// combobox for switching between different 
 };

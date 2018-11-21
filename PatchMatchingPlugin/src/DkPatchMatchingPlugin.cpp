@@ -43,17 +43,8 @@ namespace nmp {
 	*	Constructor
 	**/
 	DkPatchMatchingPlugin::DkPatchMatchingPlugin()
-		:mViewport(nullptr)
-	{
+		:mViewport(nullptr) {
 	}
-
-	/**
-	* Returns unique ID for the generated dll
-	**/
-	QString DkPatchMatchingPlugin::id() const {
-		return PLUGIN_ID;
-	};
-
 
 	/**
 	* Returns descriptive image
@@ -82,23 +73,26 @@ namespace nmp {
 
 		qDebug() << "Get viewport";
 
-		if (!mViewport) {
-			mViewport = new DkPatchMatchingViewPort;
-		}
+
 		return mViewport;
 	}
 
-	void DkPatchMatchingPlugin::deleteViewPort() {
-
-		if (mViewport) {
-			mViewport->deleteLater();
-			mViewport = nullptr;
+	bool DkPatchMatchingPlugin::createViewPort(QWidget * parent)
+	{
+		if (!mViewport) {
+			mViewport = new DkPatchMatchingViewPort;
 		}
+		return mViewport != 0;
 	}
 
 	bool DkPatchMatchingPlugin::closesOnImageChange() const
 	{
 		return false;
+	}
+
+	void DkPatchMatchingPlugin::setVisible(bool visible)
+	{
+		mViewport->setVisible(visible);
 	}
 
 	/*-----------------------------------DkPatchMatchingViewPort ---------------------------------------------*/
@@ -135,6 +129,7 @@ namespace nmp {
 		//mTimeline->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 		mTimeline->setStepSize(mtoolbar->getStepSize());
 		connect(mtoolbar.data(), &DkPatchMatchingToolBar::stepSizeChanged, mTimeline.data(), &DkPolyTimeline::setStepSize);
+		connect(mtoolbar.data(), &DkPatchMatchingToolBar::patchSizeChanged, mTimeline.data(), &DkPolyTimeline::setPatchSize);
 
 		// add the neccesarry dock
 		mDock->setStyleSheet("QDockWidget{background-color: #f00;}");
@@ -228,10 +223,11 @@ namespace nmp {
 
 	void DkPatchMatchingViewPort::saveSettings() const {
 
-		QSettings& settings = nmc::Settings::instance().getSettings();
+		nmc::DefaultSettings settings;
 
 		settings.beginGroup(objectName());
 		settings.setValue("StepSize", mtoolbar->getStepSize());
+		settings.setValue("PatchSize",mtoolbar->getPatchSize());
 		settings.endGroup();
 	}
 
@@ -248,10 +244,11 @@ namespace nmp {
 
 	void DkPatchMatchingViewPort::loadSettings() {
 
-		QSettings& settings = nmc::Settings::instance().getSettings();
+		nmc::DefaultSettings settings;
 
 		settings.beginGroup(objectName());
 		mtoolbar->setStepSize(settings.value("StepSize", 50).toInt());
+		mtoolbar->setPatchSize(settings.value("PatchSize", 40).toInt());
 		settings.endGroup();
 	}
 
@@ -357,7 +354,7 @@ namespace nmp {
 	void DkPatchMatchingViewPort::mousePressEvent(QMouseEvent *event) {
 		// panning -> redirect to viewport
 		if (event->buttons() == Qt::LeftButton &&
-			(event->modifiers() == nmc::Settings::param().global().altMod || panning)) {
+			(event->modifiers() == nmc::DkSettingsManager::param().global().altMod || panning)) {
 			setCursor(Qt::ClosedHandCursor);
 			event->setModifiers(Qt::NoModifier);	// we want a 'normal' action in the viewport
 			event->ignore();
@@ -375,7 +372,7 @@ namespace nmp {
 
 	void DkPatchMatchingViewPort::mouseMoveEvent(QMouseEvent *event) {
 		// panning -> redirect to viewport
-		if (event->modifiers() == nmc::Settings::param().global().altMod ||
+		if (event->modifiers() == nmc::DkSettingsManager::param().global().altMod ||
 			panning) {
 
 			event->setModifiers(Qt::NoModifier);
@@ -386,7 +383,7 @@ namespace nmp {
 
 	void DkPatchMatchingViewPort::mouseReleaseEvent(QMouseEvent *event) {
 		// panning -> redirect to viewport
-		if (event->modifiers() == nmc::Settings::param().global().altMod || panning) {
+		if (event->modifiers() == nmc::DkSettingsManager::param().global().altMod || panning) {
 			setCursor(defaultCursor);
 			event->setModifiers(Qt::NoModifier);
 			event->ignore();
@@ -565,7 +562,7 @@ namespace nmp {
 	void DkPatchMatchingViewPort::setVisible(bool visible) {
 
 		if (mtoolbar)
-			emit DkPluginViewPort::showToolbar(mtoolbar.data(), visible);
+			emit DkPluginViewPort::showToolBar(mtoolbar.data(), visible);
 
 		DkPluginViewPort::setVisible(visible);
 	}
@@ -574,20 +571,7 @@ namespace nmp {
 
 		createLayout();
 
-		if (nmc::Settings::param().display().toolbarGradient) {
-
-			QColor hCol = nmc::Settings::param().display().highlightColor;
-			hCol.setAlpha(80);
-
-			setStyleSheet(
-				QString("QToolBar {border: none; background: QLinearGradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #edeff9, stop: 1 #bebfc7); spacing: 3px; padding: 3px;}")
-				+ QString("QToolBar::separator {background: #656565; width: 1px; height: 1px; margin: 3px;}")
-				+ QString("QToolButton:hover{border: none; background-color: rgba(255,255,255,80);} QToolButton:pressed{margin: 0px; border: none; background-color: " + nmc::DkUtils::colorToString(hCol) + ";}")
-			);
-		}
-		else {
-			setStyleSheet("QToolBar{spacing: 3px; padding: 3px;}");
-		}
+		setStyleSheet("QToolBar{spacing: 3px; padding: 3px;}");
 
 		qDebug() << "[PAINT TOOLBAR] created...";
 	}
@@ -609,7 +593,19 @@ namespace nmp {
 		//addWidget(new QLabel{ "Resolution:",this });
 		connect(mStepSizeSpinner, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
 			this, &DkPatchMatchingToolBar::stepSizeChanged);
+		addWidget(new QLabel{ tr("Step"), this });
 		addWidget(mStepSizeSpinner);
+
+		mPatchSizeSpinner = new QSpinBox(this);
+		mPatchSizeSpinner->setObjectName("mPatchSizeSpinner");
+		mPatchSizeSpinner->setSuffix("px");
+		mPatchSizeSpinner->setMinimum(10);
+		mPatchSizeSpinner->setMaximum(500);
+		connect(mPatchSizeSpinner, static_cast<void(QSpinBox::*)(int)>(&QSpinBox::valueChanged),
+			this, &DkPatchMatchingToolBar::patchSizeChanged);
+
+		addWidget(new QLabel{ tr("Size"), this });
+		addWidget(mPatchSizeSpinner);
 		addSeparator();
 	
 		// select polygon
@@ -665,6 +661,14 @@ namespace nmp {
 	void DkPatchMatchingToolBar::setStepSize(int size)
 	{
 		mStepSizeSpinner->setValue(size);
+	}
+	int DkPatchMatchingToolBar::getPatchSize()
+	{
+		return mPatchSizeSpinner->value();
+	}
+	void DkPatchMatchingToolBar::setPatchSize(int size)
+	{
+		mPatchSizeSpinner->setValue(size);
 	}
 	int DkPatchMatchingToolBar::getCurrentPolygon()
 	{

@@ -25,64 +25,69 @@
 #pragma once
 
 #include "DkPluginInterface.h"
-#include "DkOcrToolbar.h"
 
 #include <QDockWidget>
 #include <QtWidgets>
 
 namespace nmc {
 
-class DkOcrPlugin : public QObject, DkPluginInterface {
+class DkOcrPlugin : public QObject, nmc::DkBatchPluginInterface/*, nmc::DkViewPortInterface*/ {
 
 private:
 	Q_OBJECT
-	Q_INTERFACES(nmc::DkPluginInterface)
-	Q_PLUGIN_METADATA(IID "com.nomacs.ImageLounge.DkOcrPlugin/2.0" FILE "DkOcrPlugin.json")
+	Q_INTERFACES(nmc::DkBatchPluginInterface)
+	//Q_INTERFACES(nmc::DkViewPortInterface)
+	Q_PLUGIN_METADATA(IID "com.nomacs.ImageLounge.DkOcrPlugin/0.1" FILE "DkOcrPlugin.json")
+
+	QString mTessConfigFile;
 
 public:
 
-	DkOcrPlugin(QObject* parent = 0);
+	DkOcrPlugin(QObject* parent = nullptr);
 	~DkOcrPlugin();
-
-	QString pluginID() const override;
-	QString pluginName() const override;
-	QString pluginDescription() const override;
-	QImage pluginDescriptionImage() const override;
-	QString pluginVersion() const override;
-
-	QStringList runID() const override;
-	QString pluginMenuName(const QString &runID = QString()) const override;
-	QString pluginStatusTip(const QString &runID = QString()) const override;
-	QList<QAction*> pluginActions() const override;
-	QList<QAction*> createActions(QWidget*) override;
 
 	// DIEM: I think this should solve the sub-menu: 	
 	// getMainWindow() call if you need a (or the) parent
 	// virtual QList<QAction*> createActions(QWidget*) { return QList<QAction*>();};
 	// virtual QList<QAction*> pluginActions()	const { return QList<QAction*>();};
 	
-	//QImage runPlugin(const QString &runID = QString(), const QImage &image = QImage()) const;
-	QSharedPointer<DkImageContainer> runPlugin(const QString &runID = QString(), QSharedPointer<DkImageContainer> imgC = QSharedPointer<DkImageContainer>()) const override;
+	// DkBatchPluginInterface
+	QList<QAction*> createActions(QWidget*) override;
+	QList<QAction*> pluginActions() const override;
+	QImage image() const override;
+	QString name() const override;
+	void postLoadPlugin(const QVector<QSharedPointer<nmc::DkBatchInfo> >& batchInfo) const override;
+	void preLoadPlugin() const override;
+	void loadSettings(QSettings & settings) override;
+	void saveSettings(QSettings & settings) const override;
+
+	QSharedPointer<DkImageContainer> runPlugin(
+		const QString & runID,
+		QSharedPointer<DkImageContainer> imgC,
+		const DkSaveInfo& saveInfo,
+		QSharedPointer<DkBatchInfo>& batchInfo) const override;
 
 	enum {
-		ACTION_TESTRUN,
-
-		// add actions here
-
+		ACTION_IMG2TXT,
+		ACTION_IMG2CLIP,
+		ACTION_LANGUAGEDIALOG,
 		id_end
 	};
 
-protected:
+private slots:
+	void languageSelectionChanged_(QStringList selectedLangs);
 
+protected:
 	QList<QAction*> mActions;
 	QStringList mRunIDs;
 	QStringList mMenuNames;
 	QStringList mMenuStatusTips;
+	QStringList mSelectedLanguages;
+	QString mTesseractMode;
 
-	QDockWidget* mDockWidgetSettings;
-	QTextEdit* te_resultText;
-
-	QString GetRandomString() const;
+	//QDockWidget* mDockWidgetSettings;
+	//QTextEdit* te_resultText;
+	//DkPluginViewPort* mViewport;
 };
 
 };

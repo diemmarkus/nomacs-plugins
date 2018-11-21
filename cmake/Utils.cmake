@@ -4,25 +4,27 @@ endmacro(NMC_POLICY)
 
 # Searches for Qt with the required components
 macro(NMC_FINDQT)
-	
 	set(CMAKE_AUTOMOC ON)
-	set(CMAKE_AUTORCC ON)
+	set(CMAKE_AUTORCC OFF)
+	
 	set(CMAKE_INCLUDE_CURRENT_DIR ON)
-	if(NOT QT_QMAKE_EXECUTABLE)
-		find_program(QT_QMAKE_EXECUTABLE NAMES "qmake" "qmake-qt5" "qmake.exe")
-	endif()
-	if(NOT QT_QMAKE_EXECUTABLE)
-		message(FATAL_ERROR "you have to set the path to the Qt5 qmake executable")
-	endif()
-	message(STATUS "QMake found: path: ${QT_QMAKE_EXECUTABLE}")
-	GET_FILENAME_COMPONENT(QT_QMAKE_PATH ${QT_QMAKE_EXECUTABLE} PATH)
-	set(QT_ROOT ${QT_QMAKE_PATH}/)
-	SET(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${QT_QMAKE_PATH}\\..\\lib\\cmake\\Qt5)
-	find_package(Qt5 REQUIRED Widgets Network LinguistTools PrintSupport Concurrent Gui)
-	if (NOT Qt5_FOUND)
+ 
+ if(NOT QT_QMAKE_EXECUTABLE)
+	find_program(QT_QMAKE_EXECUTABLE NAMES "qmake" "qmake-qt5" "qmake.exe")
+ endif()
+ if(NOT QT_QMAKE_EXECUTABLE)
+	message(FATAL_ERROR "you have to set the path to the Qt5 qmake executable")
+ endif()
+ message(STATUS "QMake found: ${QT_QMAKE_EXECUTABLE}")
+ GET_FILENAME_COMPONENT(QT_QMAKE_PATH ${QT_QMAKE_EXECUTABLE} PATH)
+ set(QT_ROOT ${QT_QMAKE_PATH}/)
+ SET(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${QT_QMAKE_PATH}\\..\\lib\\cmake\\Qt5)
+ find_package(Qt5 REQUIRED Widgets Network LinguistTools PrintSupport Concurrent Gui Svg)
+ if (NOT Qt5_FOUND)
 		message(FATAL_ERROR "Qt5Widgets not found. Check your QT_QMAKE_EXECUTABLE path and set it to the correct location")
-	endif()
-	add_definitions(-DQT5)
+ endif()
+ add_definitions(-DQT5)
+ 
 endmacro(NMC_FINDQT)
 
 macro(NMC_FIND_OPENCV)
@@ -109,22 +111,24 @@ macro(NMC_CREATE_TARGETS)
 		### DependencyCollector
 		set(DC_SCRIPT ${CMAKE_SOURCE_DIR}/cmake/DependencyCollector.py)
 		set(DC_CONFIG ${CMAKE_CURRENT_BINARY_DIR}/DependencyCollector.ini)
-
-		GET_FILENAME_COMPONENT(VS_PATH ${CMAKE_LINKER} PATH)
+		
+		# CMAKE_MAKE_PROGRAM works for VS 2017 too
+		get_filename_component(VS_PATH ${CMAKE_MAKE_PROGRAM} PATH)
 		if(CMAKE_CL_64)
-			SET(VS_PATH "${VS_PATH}/../../../Common7/IDE/Remote Debugger/x64")
+			set(VS_PATH "${VS_PATH}/../../../Common7/IDE/Remote Debugger/x64")
 		else()
-			SET(VS_PATH "${VS_PATH}/../../Common7/IDE/Remote Debugger/x86")
+			set(VS_PATH "${VS_PATH}/../../Common7/IDE/Remote Debugger/x86")
 		endif()
-		SET(DC_PATHS_RELEASE C:/Windows/System32 ${OpenCV_DIR}/bin/Release ${QT_QMAKE_PATH} ${VS_PATH})
-		SET(DC_PATHS_DEBUG C:/Windows/System32 ${OpenCV_DIR}/bin/Debug ${QT_QMAKE_PATH} ${VS_PATH})
+
+		set(DC_PATHS_RELEASE C:/Windows/System32 ${OpenCV_DIR}/bin/Release ${QT_QMAKE_PATH} ${VS_PATH})
+		set(DC_PATHS_DEBUG C:/Windows/System32 ${OpenCV_DIR}/bin/Debug ${QT_QMAKE_PATH} ${VS_PATH})
 
 		configure_file(${CMAKE_SOURCE_DIR}/cmake/DependencyCollector.config.cmake.in ${DC_CONFIG})
 
-		add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND ${DC_SCRIPT} --infile $<TARGET_FILE:${PROJECT_NAME}> --configfile ${DC_CONFIG} --configuration $<CONFIGURATION>)
+		add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD COMMAND python ${DC_SCRIPT} --infile $<TARGET_FILE:${PROJECT_NAME}> --configfile ${DC_CONFIG} --configuration $<CONFIGURATION>)
 		### End of DependencyCollector
 		
-		message(STATUS "${PROJECT_NAME} \t will be installed to: ${NOMACS_INSTALL_DIRECTORY}")
+		message(STATUS "${PROJECT_NAME} \t v${PLUGIN_VERSION} \t will be installed to: ${NOMACS_INSTALL_DIRECTORY}")
 		
 		set(PACKAGE_DIR ${NOMACS_INSTALL_DIRECTORY}/packages/plugins.${PLUGIN_ARCHITECTURE}.${PROJECT_NAME})
 		set(PACKAGE_DATA_DIR ${PACKAGE_DIR}/data/nomacs-${PLUGIN_ARCHITECTURE}/plugins/)

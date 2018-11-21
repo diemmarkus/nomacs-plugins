@@ -56,14 +56,6 @@ DkPaintPlugin::~DkPaintPlugin() {
 }
 
 /**
-* Returns unique ID for the generated dll
-**/
-QString DkPaintPlugin::id() const {
-	return PLUGIN_ID;
-};
-
-
-/**
 * Returns descriptive image
 **/
 QImage DkPaintPlugin::image() const {
@@ -104,28 +96,29 @@ QSharedPointer<nmc::DkImageContainer> DkPaintPlugin::runPlugin(const QString &ru
 * returns paintViewPort
 **/
 nmc::DkPluginViewPort* DkPaintPlugin::getViewPort() {
-
-	if (!viewport) {
-		viewport = new DkPaintViewPort();
-		//connect(viewport, SIGNAL(destroyed()), this, SLOT(viewportDestroyed()));
-	}
 	return viewport;
 }
 
-/**
-* sets the viewport pointer to NULL after the viewport is destroyed
-**/
-void DkPaintPlugin::viewportDestroyed() {
-
-	viewport = 0;
+DkPaintViewPort * DkPaintPlugin::getPaintViewPort() {
+	return dynamic_cast<DkPaintViewPort*>(viewport);
 }
 
-void DkPaintPlugin::deleteViewPort() {
+bool DkPaintPlugin::createViewPort(QWidget * parent) {
+	
+	viewport = new DkPaintViewPort(parent);
+	
+	return true;
+}
 
-	if (viewport) {
-		viewport->deleteLater();
-		viewport = 0;
-	}
+void DkPaintPlugin::setVisible(bool visible) {
+
+	if (!viewport)
+		return;
+
+	viewport->setVisible(visible);
+	if (!visible)
+		getPaintViewPort()->clear();
+	
 }
 
 /*-----------------------------------DkPaintViewPort ---------------------------------------------*/
@@ -154,7 +147,7 @@ DkPaintViewPort::~DkPaintViewPort() {
 
 void DkPaintViewPort::saveSettings() const {
 
-	QSettings& settings = nmc::Settings::instance().getSettings();
+	nmc::DefaultSettings settings;
 
 	settings.beginGroup(objectName());
 	settings.setValue("penColor", pen.color().rgba());
@@ -165,7 +158,7 @@ void DkPaintViewPort::saveSettings() const {
 
 void DkPaintViewPort::loadSettings() {
 
-	QSettings& settings = nmc:: Settings::instance().getSettings();
+	nmc::DefaultSettings settings;
 
 	settings.beginGroup(objectName());
 	pen.setColor(QColor::fromRgba(settings.value("penColor", pen.color().rgba()).toInt()));
@@ -214,7 +207,7 @@ void DkPaintViewPort::mousePressEvent(QMouseEvent *event) {
 
 	// panning -> redirect to viewport
 	if (event->buttons() == Qt::LeftButton && 
-		(event->modifiers() == nmc::Settings::param().global().altMod || panning)) {
+		(event->modifiers() == nmc::DkSettingsManager::param().global().altMod || panning)) {
 		setCursor(Qt::ClosedHandCursor);
 		event->setModifiers(Qt::NoModifier);	// we want a 'normal' action in the viewport
 		event->ignore();
@@ -248,7 +241,7 @@ void DkPaintViewPort::mouseMoveEvent(QMouseEvent *event) {
 	//qDebug() << "paint viewport...";
 
 	// panning -> redirect to viewport
-	if (event->modifiers() == nmc::Settings::param().global().altMod ||
+	if (event->modifiers() == nmc::DkSettingsManager::param().global().altMod ||
 		panning) {
 
 		event->setModifiers(Qt::NoModifier);
@@ -289,7 +282,7 @@ void DkPaintViewPort::mouseMoveEvent(QMouseEvent *event) {
 void DkPaintViewPort::mouseReleaseEvent(QMouseEvent *event) {
 
 	// panning -> redirect to viewport
-	if (event->modifiers() == nmc::Settings::param().global().altMod || panning) {
+	if (event->modifiers() == nmc::DkSettingsManager::param().global().altMod || panning) {
 		setCursor(defaultCursor);
 		event->setModifiers(Qt::NoModifier);
 		event->ignore();
@@ -348,6 +341,11 @@ QImage DkPaintViewPort::getPaintedImage() {
 	return QImage();
 }
 
+void DkPaintViewPort::clear() {
+	paths.clear();
+	pathsPen.clear();
+}
+
 void DkPaintViewPort::setBrush(const QBrush& brush) {
 	this->brush = brush;
 }
@@ -369,8 +367,10 @@ void DkPaintViewPort::setPenColor(QColor color) {
 void DkPaintViewPort::setPanning(bool checked) {
 
 	this->panning = checked;
-	if(checked) defaultCursor = Qt::OpenHandCursor;
-	else defaultCursor = Qt::CrossCursor;
+	if(checked) 
+		defaultCursor = Qt::OpenHandCursor;
+	else 
+		defaultCursor = Qt::CrossCursor;
 	setCursor(defaultCursor);
 }
 
@@ -401,7 +401,7 @@ bool DkPaintViewPort::isCanceled() {
 void DkPaintViewPort::setVisible(bool visible) {
 
 	if (paintToolbar)
-		emit showToolbar(paintToolbar, visible);
+		emit showToolBar(paintToolbar, visible);
 
 	DkPluginViewPort::setVisible(visible);
 }
@@ -413,24 +413,6 @@ DkPaintToolBar::DkPaintToolBar(const QString & title, QWidget * parent /* = 0 */
 	createIcons();
 	createLayout();
 	QMetaObject::connectSlotsByName(this);
-
-	setIconSize(QSize(nmc::Settings::param().display().iconSize, nmc::Settings::param().display().iconSize));
-
-	if (nmc::Settings::param().display().toolbarGradient) {
-
-		QColor hCol = nmc::Settings::param().display().highlightColor;
-		hCol.setAlpha(80);
-
-		setStyleSheet(
-			//QString("QToolBar {border-bottom: 1px solid #b6bccc;") +
-			QString("QToolBar {border: none; background: QLinearGradient(x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #edeff9, stop: 1 #bebfc7); spacing: 3px; padding: 3px;}")
-			+ QString("QToolBar::separator {background: #656565; width: 1px; height: 1px; margin: 3px;}")
-			//+ QString("QToolButton:disabled{background-color: rgba(0,0,0,10);}")
-			+ QString("QToolButton:hover{border: none; background-color: rgba(255,255,255,80);} QToolButton:pressed{margin: 0px; border: none; background-color: " + nmc::DkUtils::colorToString(hCol) + ";}")
-			);
-	}
-	else
-		setStyleSheet("QToolBar{spacing: 3px; padding: 3px;}");
 
 	qDebug() << "[PAINT TOOLBAR] created...";
 }
@@ -445,20 +427,11 @@ void DkPaintToolBar::createIcons() {
 	// create icons
 	icons.resize(icons_end);
 
-	icons[apply_icon] = QIcon(":/nomacsPluginPaint/img/apply.png");
-	icons[cancel_icon] = QIcon(":/nomacsPluginPaint/img/cancel.png");
-	icons[pan_icon] = 	QIcon(":/nomacsPluginPaint/img/pan.png");
-	icons[pan_icon].addPixmap(QPixmap(":/nomacsPluginPaint/img/pan_checked.png"), QIcon::Normal, QIcon::On);
-	icons[undo_icon] = 	QIcon(":/nomacsPluginPaint/img/undo.png");
-
-	if (!nmc::Settings::param().display().defaultIconColor || nmc::Settings::param().app().privateMode) {
-		// now colorize all icons
-		for (int idx = 0; idx < icons.size(); idx++) {
-
-			icons[idx].addPixmap(nmc::DkImage::colorizePixmap(icons[idx].pixmap(100, QIcon::Normal, QIcon::On), nmc::Settings::param().display().iconColor), QIcon::Normal, QIcon::On);
-			icons[idx].addPixmap(nmc::DkImage::colorizePixmap(icons[idx].pixmap(100, QIcon::Normal, QIcon::Off), nmc::Settings::param().display().iconColor), QIcon::Normal, QIcon::Off);
-		}
-	}
+	icons[apply_icon]	= nmc::DkImage::loadIcon(":/nomacs/img/save.svg");
+	icons[cancel_icon]	= nmc::DkImage::loadIcon(":/nomacs/img/close.svg");
+	icons[pan_icon]		= nmc::DkImage::loadIcon(":/nomacs/img/pan.svg");
+	icons[pan_icon].addPixmap(nmc::DkImage::loadIcon(":/nomacs/img/pan_checked.svg"), QIcon::Normal, QIcon::On);
+	icons[undo_icon]	= nmc::DkImage::loadIcon(":/nomacs/img/rotate-cc.svg");
 }
 
 void DkPaintToolBar::createLayout() {

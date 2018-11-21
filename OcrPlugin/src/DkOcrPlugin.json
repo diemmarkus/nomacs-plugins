@@ -1,5 +1,11 @@
 {
-    "name" : [ "DkOcrPlugin" ],
-	"PluginId"		: "9791acc7e9654ff7888a9e857290956d",
+    "PluginName" 	: "DkOcrPlugin",
+	"AuthorName" 	: "Dominik Schörkhuber",
+	"Company"		: "Vienna University of Technology",
+	"DateCreated" 	: "2016-10-08",
+	"DateModified"	: "2018-06-05",
+	"Description"	: "Optical Character Recognition",
+	"Tagline" 		: "Bla Blub nothing",
+	"PluginId"		: "ad970ef36cc24737afd2b53ad015ff0d",
 	"Version"		: "0.0.1"
 }
